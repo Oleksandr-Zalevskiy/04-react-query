@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import ReactPaginate from "react-paginate"; // Імпортуємо пагінацію
+import ReactPaginate from "react-paginate";
 import toast, { Toaster } from "react-hot-toast";
 import SearchBar from "../SearchBar/SearchBar";
 import MovieGrid from "../MovieGrid/MovieGrid";
@@ -9,7 +9,7 @@ import ErrorMessage from "../ErrorMessage/ErrorMessage";
 import MovieModal from "../MovieModal/MovieModal";
 import type { Movie } from "../../types/movie";
 import { fetchMovies } from "../../services/movieService";
-import css from "./App.module.css"; // Додамо стилі для пагінації тут
+import css from "./App.module.css";
 
 const App = () => {
   const [query, setQuery] = useState<string>("");
@@ -20,26 +20,31 @@ const App = () => {
     queryKey: ["movies", query, page],
     queryFn: () => fetchMovies(query, page),
     enabled: !!query,
-    // При класичній пагінації ми НЕ використовуємо useEffect для збереження старих фільмів
   });
+
+  // Додаємо useEffect всередині компонента App для перевірки результатів
+  useEffect(() => {
+    if (query && data?.results.length === 0) {
+      toast.error("No movies found for your request!");
+    }
+  }, [data, query]);
 
   const handleSearch = (newQuery: string) => {
     if (newQuery === query) return;
     setQuery(newQuery);
-    setPage(1); // Скидаємо на першу сторінку при новому пошуку
+    setPage(1);
   };
 
   const handlePageClick = (event: { selected: number }) => {
-    setPage(event.selected + 1); // react-paginate рахує з 0, тому додаємо 1
-    window.scrollTo({ top: 0, behavior: "smooth" }); // Скрол вгору при зміні сторінки
+    setPage(event.selected + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Отримуємо список фільмів безпосередньо з data
   const movies = data?.results ?? [];
   const totalPages = data?.total_pages ?? 0;
 
   return (
-    <div>
+    <div className={css.appContainer}>
       <SearchBar onSubmit={handleSearch} />
 
       {isError && <ErrorMessage />}
@@ -47,7 +52,9 @@ const App = () => {
       {isLoading ? (
         <Loader />
       ) : (
-        <MovieGrid movies={movies} onSelect={setSelectedMovie} />
+        movies.length > 0 && (
+          <MovieGrid movies={movies} onSelect={setSelectedMovie} />
+        )
       )}
 
       {totalPages > 1 && (
@@ -57,7 +64,7 @@ const App = () => {
           onPageChange={handlePageClick}
           pageRangeDisplayed={3}
           marginPagesDisplayed={2}
-          pageCount={totalPages > 500 ? 500 : totalPages} // TMDB обмежує пагінацію 500 сторінками
+          pageCount={totalPages > 500 ? 500 : totalPages}
           forcePage={page - 1}
           previousLabel="< previous"
           containerClassName={css.pagination}
